@@ -1,0 +1,227 @@
+﻿@page "/"
+@inject ICustomerService customerService
+@using CustManagQuickGrid.Data;
+@using CustManagQuickGrid.Services;
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.AspNetCore.Components.QuickGrid.EntityFrameworkAdapter;
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.EntityFrameworkCore;
+
+
+
+<br />
+<br />
+
+
+<div class="search-nav">
+    <button @onclick="ShowCreate" id="btn-create">Add new customer</button>
+
+    <div class="page-size-chooser">
+        Items per page:
+        <select @bind="@pagination.ItemsPerPage">
+            <option>10</option>
+            <option>15</option>
+            <option>20</option>
+            <option>50</option>
+        </select>
+    </div>
+
+    <input @oninput="Search" type="text" placeholder="Search..">
+</div>
+@if (IsCreatedShown)
+{
+    <div class="backgroundPopupBox">
+        <div class="popupCreate">
+            <EditForm Model=@customer OnValidSubmit="AddOrEditCustomer" class="form">
+                <DataAnnotationsValidator />
+                <h2>@header</h2>
+                <div class="input-field input-field--material">
+                    <input @bind-value=customer.FirstName type="text" id="material" placeholder="Example value">
+                    <label for="material">First Name</label>
+                </div>
+                <div class="input-field input-field--material">
+                    <input @bind-value=customer.LastName type="text" id="material" placeholder="Example value">
+                    <label for="material">Last Name</label>
+                </div>
+                <div class="input-field input-field--material">
+                    <input @bind-value=customer.Email type="text" id="material" placeholder="Example value">
+                    <label for="material">Email</label>
+                </div>
+                <div class="input-field input-field--material">
+                    <input @bind-value=customer.Phone type="text" id="material" placeholder="Example value">
+                    <label for="material">Phone</label>
+                </div>
+                <input class="button-submit" id="btn-create-modal" type="submit" value="@EditMode" />
+                <button @onclick="CloseModal" class="button-close" id="btn-delete-modal" type="button">Cancel</button>
+                <div class="validation">
+                    <ValidationSummary class="validation-errors" />
+                </div>
+            </EditForm>
+
+
+
+
+
+
+        </div>
+    </div>
+}
+
+
+
+<div>
+    <QuickGrid Items="@Customers" Pagination="@pagination">
+        <PropertyColumn Property="@(c => c.Id)" Sortable="true" Class="table-width-id" />
+        <PropertyColumn Property="@(c => c.FirstName)" Sortable="true" />
+        <PropertyColumn Property="@(c => c.LastName)" Sortable="true" />
+        <PropertyColumn Property="@(c => c.Email)" Sortable="true" />
+        <PropertyColumn Property="@(c => c.Phone)" Sortable="true" />
+
+
+        <TemplateColumn Class="table-width-action">
+            <button @onclick="@(()=> LoadToEdit(context.Id))" id="btn-edit">Update</button>
+        </TemplateColumn>
+        <TemplateColumn Class="table-width-action">
+            <button @onclick="@(()=> deleteCustomer(context.Id))" id="btn-delete">Delete</button>
+        </TemplateColumn>
+    </QuickGrid>
+</div>
+
+<div class="page-buttons">
+    Page:
+    @if (pagination.TotalItemCount.HasValue)
+    {
+        for (var pageIndex = 0; pageIndex <= pagination.LastPageIndex; pageIndex++)
+        {
+            var capturedIndex = pageIndex;
+            <button @onclick="@(() => GoToPageAsync(capturedIndex))"
+            class="@PageButtonClass(capturedIndex)"
+            aria-current="@AriaCurrentValue(capturedIndex)"
+            aria-label="Go to page @(pageIndex + 1)">
+                @(pageIndex + 1)
+            </button>
+        }
+    }
+</div>
+
+
+
+
+@code {
+
+    IQueryable<Customer>? Customers;
+
+    Customer customer = new Customer();
+
+    String EditMode = "Add new customer";
+    string header = string.Empty;
+
+    PaginationState pagination = new PaginationState { ItemsPerPage = 10 };
+
+
+    public async Task AddCustomer()
+    {
+        await customerService.AddNewCustomer(customer);
+        customer = new Customer();
+    }
+
+
+    private async Task LoadCustomers()
+    {
+
+        var customers = await customerService.GetAllCustomers();
+        Customers = customers.AsQueryable();
+
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomers();
+        pagination.TotalItemCountChanged += (sender, eventArgs) => StateHasChanged();
+
+    }
+
+
+
+
+    public async Task AddOrEditCustomer()
+    {
+
+        if (EditMode == "Add new customer")
+        {
+            await customerService.AddNewCustomer(customer);
+            customer = new Customer();
+            await LoadCustomers();
+            IsCreatedShown = false;
+
+
+        }
+        else
+        {
+            await customerService.UpdateCustomer(customer);
+            customer = new Customer();
+            await LoadCustomers();
+            EditMode = "Add new customer";
+            IsCreatedShown = false;
+        }
+    }
+
+    public async Task deleteCustomer(int Id)
+    {
+        await customerService.DeleteCustomer(Id);
+        await LoadCustomers();
+    }
+
+
+
+
+    public void LoadToEdit(int Id)
+    {
+        IsCreatedShown = true;
+        EditMode = "Update customer";
+        var selectedCustomer = Customers.Where(c => c.Id == Id).FirstOrDefault();
+        customer = selectedCustomer;
+        header = "Update customer";
+
+    }
+
+    private void CloseModal()
+    {
+        IsCreatedShown = false;
+        EditMode = "Add new customer";
+        customer = new Customer();
+    }
+
+
+    bool IsCreatedShown = false;
+    private void ShowCreate()
+    {
+        IsCreatedShown = true;
+        header = "Add new customer";
+    }
+
+    private async void Search(ChangeEventArgs args)
+    {
+        var searchTerm = (string)args.Value;
+        await LoadCustomers();
+        var customersToSearch = Customers.Where
+        (c => c.FirstName.Contains(searchTerm) || c.LastName.Contains(searchTerm) || c.Email.Contains(searchTerm) || c.Phone.Contains(searchTerm));
+        Customers = customersToSearch.ToList().AsQueryable();
+        StateHasChanged();
+
+    }
+
+
+    private async Task GoToPageAsync(int pageIndex)
+    {
+        await pagination.SetCurrentPageIndexAsync(pageIndex);
+    }
+
+    private string? PageButtonClass(int pageIndex)
+        => pagination.CurrentPageIndex == pageIndex ? "current" : null;
+
+    private string? AriaCurrentValue(int pageIndex)
+        => pagination.CurrentPageIndex == pageIndex ? "page" : null;
+
+
+}
