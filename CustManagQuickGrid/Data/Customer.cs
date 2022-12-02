@@ -21,5 +21,6 @@ public class Customer
 
     [Required]
     [MaxLength(20, ErrorMessage = "Phone number length must be less than 20 letters")]
+    [RegularExpression(@"(^([0-9]*|\d*\d{1}?\d*)$)", ErrorMessage = "Only numeric values allowed")]
     public string Phone { get; set; } = string.Empty;
 }

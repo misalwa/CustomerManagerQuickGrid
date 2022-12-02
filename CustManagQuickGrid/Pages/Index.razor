@@ -205,7 +205,7 @@
         var searchTerm = (string)args.Value;
         await LoadCustomers();
         var customersToSearch = Customers.Where
-        (c => c.FirstName.Contains(searchTerm) || c.LastName.Contains(searchTerm) || c.Email.Contains(searchTerm) || c.Phone.Contains(searchTerm));
+        (c => c.FirstName.ToLower().Contains(searchTerm.ToLower()) || c.LastName.ToLower().Contains(searchTerm.ToLower()) || c.Email.Contains(searchTerm) || c.Phone.Contains(searchTerm));
         Customers = customersToSearch.ToList().AsQueryable();
         StateHasChanged();
 
